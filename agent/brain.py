@@ -42,11 +42,11 @@ def extract_concepts_with_gemini(topic: str, wiki_data: dict) -> list[dict]:
     """Ask Gemini to extract key concepts from the Wikipedia data."""
     prompt = EXTRACT_CONCEPTS_PROMPT.format(
         topic=topic,
-        summary=wiki_data.get("summary", "")[:2000],
+        summary=wiki_data.get("summary", "")[:500],
         sections=", ".join(wiki_data.get("sections", []))
     )
     response = client_genai.models.generate_content(
-        model="gemini-2.0-flash",
+        model="gemini-2.5-flash",
         contents=prompt
     )
     text = response.text.strip()
@@ -61,7 +61,7 @@ def summarize_concept_with_gemini(concept: str, raw_text: str) -> str:
         text=raw_text[:1500]
     )
     response = client_genai.models.generate_content(
-        model="gemini-1.5-flash",
+        model="gemini-2.5-flash",
         contents=prompt
     )
     return response.text.strip()
