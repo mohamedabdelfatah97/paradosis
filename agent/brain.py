@@ -61,7 +61,7 @@ def summarize_concept_with_gemini(concept: str, raw_text: str) -> str:
         text=raw_text[:1500]
     )
     response = client_genai.models.generate_content(
-        model="gemini-2.0-flash",
+        model="gemini-1.5-flash",
         contents=prompt
     )
     return response.text.strip()
