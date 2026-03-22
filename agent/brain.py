@@ -33,7 +33,10 @@ async def fetch_from_wikipedia(topic: str) -> dict:
             raw = result.content[0].text
             if not raw or not raw.strip():
                 return {"error": "Empty response from Wikipedia MCP server"}
-            return json.loads(raw)
+            try:
+                return json.loads(raw)
+            except json.JSONDecodeError:
+                return {"error": f"Could not parse Wikipedia response: {raw[:100]}"}
 
 def extract_concepts_with_gemini(topic: str, wiki_data: dict) -> list[dict]:
     """Ask Gemini to extract key concepts from the Wikipedia data."""
