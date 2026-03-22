@@ -1,5 +1,8 @@
 import httpx
 from mcp.server.fastmcp import FastMCP
+import asyncio
+import httpx
+from mcp.server.fastmcp import FastMCP
 
 mcp = FastMCP("wikipedia")
 
@@ -7,7 +10,14 @@ mcp = FastMCP("wikipedia")
 async def fetch_article(topic: str) -> dict:
     """Fetch a Wikipedia article summary and key sections for a given topic."""
     
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(
+    headers={
+        "User-Agent": "Paradosis/1.0 (knowledge cartography; contact: educational-tool)",
+        "Accept": "application/json"
+    },
+    follow_redirects=True,
+    timeout=30.0
+) as client:
         # Step 1 — search for the best matching article
         search_url = "https://en.wikipedia.org/w/api.php"
         search_params = {
@@ -19,6 +29,7 @@ async def fetch_article(topic: str) -> dict:
         }
         search_resp = await client.get(search_url, params=search_params)
         search_data = search_resp.json()
+        await asyncio.sleep(1)
         
         if not search_data["query"]["search"]:
             return {"error": f"No Wikipedia article found for '{topic}'"}

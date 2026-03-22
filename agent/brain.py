@@ -3,7 +3,8 @@ import json
 import os
 from datetime import datetime
 
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from dotenv import load_dotenv
@@ -14,8 +15,7 @@ from agent.prompts import EXTRACT_CONCEPTS_PROMPT, SUMMARIZE_CONCEPT_PROMPT
 load_dotenv()
 
 # Configure Gemini
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-model = genai.GenerativeModel("gemini-2.0-flash")
+client_genai = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 async def fetch_from_wikipedia(topic: str) -> dict:
     """Call the Wikipedia MCP server and get article data."""
@@ -30,7 +30,10 @@ async def fetch_from_wikipedia(topic: str) -> dict:
                 "fetch_article",
                 arguments={"topic": topic}
             )
-            return json.loads(result.content[0].text)
+            raw = result.content[0].text
+            if not raw or not raw.strip():
+                return {"error": "Empty response from Wikipedia MCP server"}
+            return json.loads(raw)
 
 def extract_concepts_with_gemini(topic: str, wiki_data: dict) -> list[dict]:
     """Ask Gemini to extract key concepts from the Wikipedia data."""
@@ -39,12 +42,12 @@ def extract_concepts_with_gemini(topic: str, wiki_data: dict) -> list[dict]:
         summary=wiki_data.get("summary", "")[:2000],
         sections=", ".join(wiki_data.get("sections", []))
     )
-    response = model.generate_content(prompt)
+    response = client_genai.models.generate_content(
+        model="gemini-2.0-flash",
+        contents=prompt
+    )
     text = response.text.strip()
-    
-    # Clean any accidental markdown
     text = text.replace("```json", "").replace("```", "").strip()
-    
     parsed = json.loads(text)
     return parsed.get("concepts", [])
 
@@ -54,7 +57,10 @@ def summarize_concept_with_gemini(concept: str, raw_text: str) -> str:
         concept=concept,
         text=raw_text[:1500]
     )
-    response = model.generate_content(prompt)
+    response = client_genai.models.generate_content(
+        model="gemini-2.0-flash",
+        contents=prompt
+    )
     return response.text.strip()
 
 async def build_graph(topic: str, depth: int = 2) -> KnowledgeGraph:
@@ -68,7 +74,8 @@ async def build_graph(topic: str, depth: int = 2) -> KnowledgeGraph:
     wiki_data = await fetch_from_wikipedia(topic)
     
     if "error" in wiki_data:
-        print(f"❌ {wiki_data['error']}")
+        print(f"❌ Wikipedia error: {wiki_data['error']}")
+        print("💡 Wikipedia may be rate limiting. Wait a few minutes and try again.")
         return graph
     
     # Add root node
