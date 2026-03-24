@@ -24,7 +24,9 @@ async def fetch_article(topic: str) -> dict:
                 "list": "search",
                 "srsearch": topic,
                 "format": "json",
-                "srlimit": 1
+                "srlimit": 3,
+                "srinfo": "totalhits",
+                "srprop": "snippet|titlesnippet"
             }
             search_resp = await client.get(search_url, params=search_params)
             
@@ -40,7 +42,14 @@ async def fetch_article(topic: str) -> dict:
             if not search_data.get("query", {}).get("search"):
                 return {"error": f"No Wikipedia article found for '{topic}'"}
             
-            page_title = search_data["query"]["search"][0]["title"]
+            results = search_data["query"]["search"]
+            # Pick result whose title most closely matches the topic
+            topic_lower = topic.lower().replace("-", " ").replace("_", " ")
+            page_title = results[0]["title"]  # default
+            for result in results:
+                if topic_lower in result["title"].lower():
+                    page_title = result["title"]
+                    break
             
             # Step 2 — fetch the actual article summary
             summary_url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{page_title}"
