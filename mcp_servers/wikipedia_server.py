@@ -43,14 +43,17 @@ async def fetch_article(topic: str) -> dict:
                 return {"error": f"No Wikipedia article found for '{topic}'"}
             
             results = search_data["query"]["search"]
-            # Pick result whose title most closely matches the topic
             topic_lower = topic.lower().replace("-", " ").replace("_", " ")
-            page_title = results[0]["title"]  # default
+            page_title = None
             for result in results:
-                if topic_lower in result["title"].lower():
+                title_lower = result["title"].lower()
+                if any(word in title_lower for word in topic_lower.split() if len(word) > 3):
                     page_title = result["title"]
                     break
-            
+
+            if not page_title:
+                return {"error": f"No relevant Wikipedia article found for '{topic}'. Wikipedia may not have this topic."}
+                        
             # Step 2 — fetch the actual article summary
             summary_url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{page_title}"
             summary_resp = await client.get(summary_url)
